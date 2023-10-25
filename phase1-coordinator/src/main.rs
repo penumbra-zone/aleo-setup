@@ -28,25 +28,21 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
 }
 
 fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: &str) -> pgroup::G1 {
-    /*
     let mut x_bytes = Vec::new();
     let mut y_bytes = Vec::new();
 
     <Fp384<FqParameters> as CanonicalSerialize>::serialize_uncompressed(&p.x, &mut x_bytes).unwrap();
     <Fp384<FqParameters> as CanonicalSerialize>::serialize_uncompressed(&p.y, &mut y_bytes).unwrap();
-    if debug {
-        println!("{:X?}", x_bytes);
-    }
-
     let out = pgroup::G1Affine {
         x: pgroup::FBase::deserialize_uncompressed(&x_bytes[..]).unwrap(),
         y: pgroup::FBase::deserialize_uncompressed(&y_bytes[..]).unwrap(),
         infinity: p.infinity,
     };
-    */
     let mut bytes = Vec::new();
     p.serialize_uncompressed(&mut bytes).unwrap();
+    /*
     let out = pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap();
+    */
     {
         let mut out_bytes = Vec::new();
         out.serialize_uncompressed(&mut out_bytes);
