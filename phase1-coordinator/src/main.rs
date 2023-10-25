@@ -27,51 +27,69 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
     Ok(Coordinator::new(environment.clone(), signature)?)
 }
 
-fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine) -> pgroup::G1 {
+fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: bool) -> pgroup::G1 {
     /*
     let mut x_bytes = Vec::new();
     let mut y_bytes = Vec::new();
 
     <Fp384<FqParameters> as CanonicalSerialize>::serialize_uncompressed(&p.x, &mut x_bytes).unwrap();
     <Fp384<FqParameters> as CanonicalSerialize>::serialize_uncompressed(&p.y, &mut y_bytes).unwrap();
+    if debug {
+        println!("{:X?}", x_bytes);
+    }
 
-    let affine_ours = pgroup::G1Affine {
+    let out = pgroup::G1Affine {
         x: pgroup::FBase::deserialize_uncompressed(&x_bytes[..]).unwrap(),
         y: pgroup::FBase::deserialize_uncompressed(&y_bytes[..]).unwrap(),
         infinity: p.infinity,
     };
-    affine_ours.into()
     */
     let mut bytes = Vec::new();
     p.serialize_uncompressed(&mut bytes).unwrap();
-    pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap().into()
+    let out = pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap();
+    if debug {
+        println!("p.x {:?}", p.x);
+        println!("p.x.0.0 {:?}", p.x.0.0);
+        println!("out.x {}", out.x);
+        println!("p.y {:?}", p.y);
+        println!("p.y.0.0 {:?}", p.y.0.0);
+        println!("out.y {}", out.y);
+    }
+    out.into()
 }
 
-fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine) -> pgroup::G2 {
+fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine, debug: bool) -> pgroup::G2 {
     let mut bytes = Vec::new();
     p.serialize_uncompressed(&mut bytes).unwrap();
-    pgroup::G2Affine::deserialize_uncompressed(&bytes[..]).unwrap().into()
+    let out = pgroup::G2Affine::deserialize_uncompressed(&bytes[..]).unwrap();
+    if debug {
+        println!("p.x {:?} {:?}", p.x.c0, p.x.c1);
+        println!("out.x {} {}", out.x.c0, out.x.c1);
+        println!("p.y {:?} {:?}", p.y.c0, p.y.c1);
+        println!("out.y {} {}", out.y.c0, out.y.c1);
+    }
+    out.into()
 }
 
 fn thing_we_want0<'a>(their_stuff: &Phase1<'a, Bls12_377>, d: usize) -> penumbra::single::Phase1CRSElements {
     penumbra::single::Phase1CRSElements {
         degree: d,
         raw: penumbra::single::Phase1RawCRSElements {
-            alpha_1: convert(&their_stuff.alpha_tau_powers_g1[0]),
-            beta_1: convert(&their_stuff.beta_tau_powers_g1[0]),
-            beta_2: convert2(&their_stuff.beta_g2),
+            alpha_1: convert(&their_stuff.alpha_tau_powers_g1[0], true),
+            beta_1: convert(&their_stuff.beta_tau_powers_g1[0], true),
+            beta_2: convert2(&their_stuff.beta_g2, true),
             x_1: their_stuff.tau_powers_g1[..(2 * d - 1)]
                 .iter()
-                .map(|x| convert(x))
+                .map(|x| convert(x, false))
                 .collect(),
-            x_2: their_stuff.tau_powers_g2[..d].iter().map(|x| convert2(x)).collect(),
+            x_2: their_stuff.tau_powers_g2[..d].iter().map(|x| convert2(x, false)).collect(),
             alpha_x_1: their_stuff.alpha_tau_powers_g1[..d]
                 .iter()
-                .map(|x| convert(x))
+                .map(|x| convert(x, false))
                 .collect(),
             beta_x_1: their_stuff.beta_tau_powers_g1[..d]
                 .iter()
-                .map(|x| convert(x))
+                .map(|x| convert(x, false))
                 .collect(),
         },
     }
@@ -117,6 +135,6 @@ pub async fn main() -> anyhow::Result<()> {
     let phase_1_root = thing_we_want(current_accumulator);
     penumbra::all::Phase1RawCeremonyCRS::from(phase_1_root.clone()).validate().expect("should be valid");
     let proto_encoded_phase_1_root: CeremonyCrs = phase_1_root.try_into()?;
-    std::fs::write("phase1-v2.bin", proto_encoded_phase_1_root.encode_to_vec())?;
+    std::fs::write("phase1-v3.bin", proto_encoded_phase_1_root.encode_to_vec())?;
     Ok(())
 }
