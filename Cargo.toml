@@ -1,18 +1,18 @@
 [workspace]
 members = [
-    "phase1-cli",
-    "phase1",
-    "phase1-cli",
+#    "phase1-cli",
+#    "phase1",
+#    "phase1-cli",
     "phase1-coordinator",
-    "phase1-wasm",
-    "phase1-wasm-keys",
-    "phase2",
-    "setup1-cli-tools",
-    "setup1-contributor",
-    "setup1-shared",
-    "setup1-verifier",
-    "setup2",
-    "setup-utils",
+#    "phase1-wasm",
+#    "phase1-wasm-keys",
+#    "phase2",
+#    "setup1-cli-tools",
+#    "setup1-contributor",
+#    "setup1-shared",
+#    "setup1-verifier",
+#    "setup2",
+#    "setup-utils",
 ]
 
 [profile.release]

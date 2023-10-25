@@ -6,7 +6,7 @@ description = "Coordinator implementation of Phase 1"
 homepage = "https://github.com/AleoHQ/aleo-setup"
 repository = "https://github.com/AleoHQ/aleo-setup"
 license = "MIT/Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 [[bin]]
 name = "phase1-coordinator"
@@ -18,6 +18,15 @@ phase1 = { path = "../phase1" }
 setup-utils = { path = "../setup-utils" }
 snarkvm-curves = { git = "https://github.com/AleoHQ/snarkVM.git", rev = "fc997c" }
 
+ark-serialize = "0.4"
+ark-ec = "0.4"
+ark-ff = "0.4"
+ark-groth16 = "0.4"
+ark-poly = "0.4"
+ark-relations = "0.4"
+decaf377 = "0.5"
+blake2b_simd = "0.5"
+rand_core = { version = "0.6", features = ["getrandom"] }
 anyhow = { version = "1.0.37" }
 fs-err = { version = "2.6.0" }
 itertools = "0.10"
@@ -37,6 +46,7 @@ time = { version = "0.3", features = ["serde-human-readable", "macros"] }
 tokio = { version = "1.13", features = ["macros", "rt-multi-thread", "time", "sync", "signal"] }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3" }
+# penumbra-proto = { git = "https://github.com/penumbra-zone/penumbra" } 
 
 [dev-dependencies]
 serial_test = { version = "0.5" }
