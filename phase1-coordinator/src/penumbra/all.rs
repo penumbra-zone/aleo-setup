@@ -342,6 +342,11 @@ impl Phase1RawCeremonyCRS {
         }
     }
 
+    pub fn validate(self) -> Option<Phase1CeremonyCRS> {
+        let out = transform_parallel(self.0, |x| x.validate().ok_or(anyhow!("failed to validate")));
+        Some(Phase1CeremonyCRS(flatten_results(out).ok()?))
+    }
+
     /// This should only be used when the data is known to be from a trusted source.
     pub fn unchecked_from_protobuf(value: pb::CeremonyCrs) -> anyhow::Result<Self> {
         Ok(Self([

@@ -74,7 +74,9 @@ impl RawCRSElements {
     #[must_use]
     pub fn validate(self) -> Option<CRSElements> {
         // 0. Check that we can extract a valid degree out of these elements.
+        println!("checking 0");
         let d = self.get_degree()?;
+        println!("checking 1");
         // 1. Check that the elements committing to the secret values are not 0.
         if self.alpha_1.is_zero()
             || self.beta_1.is_zero()
@@ -86,36 +88,46 @@ impl RawCRSElements {
         }
         // 2. Check that the two beta commitments match.
         // 3. Check that the x values match on both groups.
+        println!("checking 2,3");
         let mut checker0 = BatchedPairingChecker12::new(G2::generator(), G1::generator());
         checker0.add(self.beta_1, self.beta_2);
         for (&x_1_i, &x_2_i) in self.x_1.iter().zip(self.x_2.iter()) {
             checker0.add(x_1_i, x_2_i);
         }
+        if !checker0.check(&mut OsRng) {
+            return None;
+        }
 
         // 4. Check that alpha and x are connected in alpha_x.
+        println!("checking 4");
         let mut checker1 = BatchedPairingChecker12::new(G2::generator(), self.alpha_1);
         for (&alpha_x_i, &x_i) in self.alpha_x_1.iter().zip(self.x_2.iter()) {
             checker1.add(alpha_x_i, x_i);
         }
+        if !checker1.check(&mut OsRng) {
+            return None;
+        }
         //
         // 5. Check that beta and x are connected in beta_x.
+        println!("checking 5");
         let mut checker2 = BatchedPairingChecker12::new(G2::generator(), self.beta_1);
         for (&beta_x_i, &x_i) in self.beta_x_1.iter().zip(self.x_2.iter()) {
             checker2.add(beta_x_i, x_i);
         }
-        if !self
-            .x_2
-            .iter()
-            .zip(self.beta_x_1.iter())
-            .all(|(x_i, beta_x_i)| pairing(self.beta_1, x_i) == pairing(beta_x_i, G2::generator()))
-        {
+        if !checker2.check(&mut OsRng) {
             return None;
         }
+
         // 6. Check that the x_i are the correct powers of x.
+        println!("checking 6");
         let mut checker3 = BatchedPairingChecker11::new(self.x_2[1], G2::generator());
         for (&x_i, &x_i_plus_1) in self.x_1.iter().zip(self.x_1.iter().skip(1)) {
             checker3.add(x_i, x_i_plus_1);
         }
+        if !checker3.check(&mut OsRng) {
+            return None;
+        }
+        /*
         // "神だけが私を裁ける"
         if transform_parallel(
             [Ok(checker0), Ok(checker1), Ok(checker2), Err(checker3)],
@@ -129,6 +141,7 @@ impl RawCRSElements {
         {
             return None;
         }
+        */
 
         Some(CRSElements {
             degree: d,

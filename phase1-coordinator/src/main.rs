@@ -28,6 +28,7 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
 }
 
 fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine) -> pgroup::G1 {
+    /*
     let mut x_bytes = Vec::new();
     let mut y_bytes = Vec::new();
 
@@ -40,11 +41,15 @@ fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine) -> pgroup::G1 {
         infinity: p.infinity,
     };
     affine_ours.into()
+    */
+    let mut bytes = Vec::new();
+    p.serialize_uncompressed(&mut bytes).unwrap();
+    pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap().into()
 }
 
 fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine) -> pgroup::G2 {
     let mut bytes = Vec::new();
-    p.serialize_uncompressed(&mut bytes);
+    p.serialize_uncompressed(&mut bytes).unwrap();
     pgroup::G2Affine::deserialize_uncompressed(&bytes[..]).unwrap().into()
 }
 
@@ -64,7 +69,7 @@ fn thing_we_want0<'a>(their_stuff: &Phase1<'a, Bls12_377>, d: usize) -> penumbra
                 .iter()
                 .map(|x| convert(x))
                 .collect(),
-            beta_x_1: their_stuff.alpha_tau_powers_g1[..d]
+            beta_x_1: their_stuff.beta_tau_powers_g1[..d]
                 .iter()
                 .map(|x| convert(x))
                 .collect(),
@@ -104,12 +109,14 @@ pub async fn main() -> anyhow::Result<()> {
     let current_accumulator = Phase1::deserialize(
         &response_readable_map,
         UseCompression::No,
+        // We've already run with Full
         CheckForCorrectness::No,
         &parameters,
     )
     .expect("unable to read uncompressed accumulator");
     let phase_1_root = thing_we_want(current_accumulator);
-                let proto_encoded_phase_1_root: CeremonyCrs = phase_1_root.try_into()?;
-                std::fs::write("phase1.bin", proto_encoded_phase_1_root.encode_to_vec())?;
+    penumbra::all::Phase1RawCeremonyCRS::from(phase_1_root.clone()).validate().expect("should be valid");
+    let proto_encoded_phase_1_root: CeremonyCrs = phase_1_root.try_into()?;
+    std::fs::write("phase1-v2.bin", proto_encoded_phase_1_root.encode_to_vec())?;
     Ok(())
 }
