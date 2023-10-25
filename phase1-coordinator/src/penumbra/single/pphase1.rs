@@ -88,13 +88,18 @@ impl RawCRSElements {
         }
         // 2. Check that the two beta commitments match.
         // 3. Check that the x values match on both groups.
-        println!("checking 2,3");
-        let mut checker0 = BatchedPairingChecker12::new(G2::generator(), G1::generator());
-        checker0.add(self.beta_1, self.beta_2);
-        for (&x_1_i, &x_2_i) in self.x_1.iter().zip(self.x_2.iter()) {
-            checker0.add(x_1_i, x_2_i);
+        println!("checking 2");
+        let mut checker00 = BatchedPairingChecker12::new(G2::generator(), G1::generator());
+        checker00.add(self.beta_1, self.beta_2);
+        if !checker00.check(&mut OsRng) {
+            return None;
         }
-        if !checker0.check(&mut OsRng) {
+        let mut checker01 = BatchedPairingChecker12::new(G2::generator(), G1::generator());
+        println!("checking 3");
+        for (&x_1_i, &x_2_i) in self.x_1.iter().zip(self.x_2.iter()) {
+            checker01.add(x_1_i, x_2_i);
+        }
+        if !checker01.check(&mut OsRng) {
             return None;
         }
 

@@ -1,5 +1,4 @@
-use std::convert::TryInto;
-use ark_serialize::CanonicalDeserialize;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize as _};
 use memmap::MmapOptions;
 use phase1::{Phase1, Phase1Parameters};
 use phase1_coordinator::{
@@ -10,6 +9,7 @@ use phase1_coordinator::{
 use setup_utils::{CheckForCorrectness, UseCompression};
 use snarkvm_curves::bls12_377::Bls12_377;
 use snarkvm_curves::{bls12_377::FqParameters, AffineCurve, PairingEngine, ProjectiveCurve};
+use std::convert::TryInto;
 use tracing_subscriber;
 
 use penumbra::single::group as pgroup;
@@ -17,11 +17,11 @@ use std::{fs::OpenOptions, sync::Arc, time::Duration};
 use tokio::{sync::RwLock, task, time::sleep};
 use tracing::*;
 
+use penumbra::proto::tools::summoning::v1alpha1::CeremonyCrs;
+use penumbra::proto::Message;
 use phase1_coordinator::penumbra;
 use snarkvm_fields::{Field, Fp384};
 use snarkvm_utilities::serialize::CanonicalSerialize;
-use penumbra::proto::tools::summoning::v1alpha1::CeremonyCrs;
-use penumbra::proto::Message;
 
 fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyhow::Result<Coordinator> {
     Ok(Coordinator::new(environment.clone(), signature)?)
@@ -47,13 +47,10 @@ fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: bool) -> pgroup::G
     let mut bytes = Vec::new();
     p.serialize_uncompressed(&mut bytes).unwrap();
     let out = pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap();
-    if debug {
-        println!("p.x {:?}", p.x);
-        println!("p.x.0.0 {:?}", p.x.0.0);
-        println!("out.x {}", out.x);
-        println!("p.y {:?}", p.y);
-        println!("p.y.0.0 {:?}", p.y.0.0);
-        println!("out.y {}", out.y);
+    {
+        let mut out_bytes = Vec::new();
+        out.serialize_uncompressed(&mut out_bytes);
+        assert_eq!(bytes, out_bytes);
     }
     out.into()
 }
@@ -62,11 +59,10 @@ fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine, debug: bool) -> pgroup::
     let mut bytes = Vec::new();
     p.serialize_uncompressed(&mut bytes).unwrap();
     let out = pgroup::G2Affine::deserialize_uncompressed(&bytes[..]).unwrap();
-    if debug {
-        println!("p.x {:?} {:?}", p.x.c0, p.x.c1);
-        println!("out.x {} {}", out.x.c0, out.x.c1);
-        println!("p.y {:?} {:?}", p.y.c0, p.y.c1);
-        println!("out.y {} {}", out.y.c0, out.y.c1);
+    {
+        let mut out_bytes = Vec::new();
+        out.serialize_uncompressed(&mut out_bytes);
+        assert_eq!(bytes, out_bytes);
     }
     out.into()
 }
@@ -82,7 +78,10 @@ fn thing_we_want0<'a>(their_stuff: &Phase1<'a, Bls12_377>, d: usize) -> penumbra
                 .iter()
                 .map(|x| convert(x, false))
                 .collect(),
-            x_2: their_stuff.tau_powers_g2[..d].iter().map(|x| convert2(x, false)).collect(),
+            x_2: their_stuff.tau_powers_g2[..d]
+                .iter()
+                .map(|x| convert2(x, false))
+                .collect(),
             alpha_x_1: their_stuff.alpha_tau_powers_g1[..d]
                 .iter()
                 .map(|x| convert(x, false))
@@ -133,7 +132,9 @@ pub async fn main() -> anyhow::Result<()> {
     )
     .expect("unable to read uncompressed accumulator");
     let phase_1_root = thing_we_want(current_accumulator);
-    penumbra::all::Phase1RawCeremonyCRS::from(phase_1_root.clone()).validate().expect("should be valid");
+    penumbra::all::Phase1RawCeremonyCRS::from(phase_1_root.clone())
+        .validate()
+        .expect("should be valid");
     let proto_encoded_phase_1_root: CeremonyCrs = phase_1_root.try_into()?;
     std::fs::write("phase1-v3.bin", proto_encoded_phase_1_root.encode_to_vec())?;
     Ok(())
