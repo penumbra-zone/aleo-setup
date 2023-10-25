@@ -27,7 +27,7 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
     Ok(Coordinator::new(environment.clone(), signature)?)
 }
 
-fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: bool) -> pgroup::G1 {
+fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: &str) -> pgroup::G1 {
     /*
     let mut x_bytes = Vec::new();
     let mut y_bytes = Vec::new();
@@ -50,19 +50,23 @@ fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: bool) -> pgroup::G
     {
         let mut out_bytes = Vec::new();
         out.serialize_uncompressed(&mut out_bytes);
-        assert_eq!(bytes, out_bytes);
+        if bytes != out_bytes {
+            panic!("{}: left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
+        }
     }
     out.into()
 }
 
-fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine, debug: bool) -> pgroup::G2 {
+fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine, debug: &str) -> pgroup::G2 {
     let mut bytes = Vec::new();
     p.serialize_uncompressed(&mut bytes).unwrap();
     let out = pgroup::G2Affine::deserialize_uncompressed(&bytes[..]).unwrap();
     {
         let mut out_bytes = Vec::new();
         out.serialize_uncompressed(&mut out_bytes);
-        assert_eq!(bytes, out_bytes);
+        if bytes != out_bytes {
+            panic!("{}: left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
+        }
     }
     out.into()
 }
@@ -71,24 +75,28 @@ fn thing_we_want0<'a>(their_stuff: &Phase1<'a, Bls12_377>, d: usize) -> penumbra
     penumbra::single::Phase1CRSElements {
         degree: d,
         raw: penumbra::single::Phase1RawCRSElements {
-            alpha_1: convert(&their_stuff.alpha_tau_powers_g1[0], true),
-            beta_1: convert(&their_stuff.beta_tau_powers_g1[0], true),
-            beta_2: convert2(&their_stuff.beta_g2, true),
+            alpha_1: convert(&their_stuff.alpha_tau_powers_g1[0], "alpha1"),
+            beta_1: convert(&their_stuff.beta_tau_powers_g1[0], "beta1"),
+            beta_2: convert2(&their_stuff.beta_g2, "beta2"),
             x_1: their_stuff.tau_powers_g1[..(2 * d - 1)]
                 .iter()
-                .map(|x| convert(x, false))
+                .enumerate()
+                .map(|(i, x)| convert(x, &format!("x_1_{i}")))
                 .collect(),
             x_2: their_stuff.tau_powers_g2[..d]
                 .iter()
-                .map(|x| convert2(x, false))
+                .enumerate()
+                .map(|(i, x)| convert2(x, &format!("x_2_{i}")))
                 .collect(),
             alpha_x_1: their_stuff.alpha_tau_powers_g1[..d]
                 .iter()
-                .map(|x| convert(x, false))
+                .enumerate()
+                .map(|(i, x)| convert(x, &format!("alpha_x_1_{i}")))
                 .collect(),
             beta_x_1: their_stuff.beta_tau_powers_g1[..d]
                 .iter()
-                .map(|x| convert(x, false))
+                .enumerate()
+                .map(|(i, x)| convert(x, &format!("beta_x_1_{i}")))
                 .collect(),
         },
     }
