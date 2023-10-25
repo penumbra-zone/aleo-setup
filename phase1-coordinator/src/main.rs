@@ -1,5 +1,5 @@
+use std::convert::TryInto;
 use ark_serialize::CanonicalDeserialize;
-use snarkvm_curves::{AffineCurve, ProjectiveCurve, PairingEngine, bls12_377::FqParameters};
 use memmap::MmapOptions;
 use phase1::{Phase1, Phase1Parameters};
 use phase1_coordinator::{
@@ -9,23 +9,25 @@ use phase1_coordinator::{
 };
 use setup_utils::{CheckForCorrectness, UseCompression};
 use snarkvm_curves::bls12_377::Bls12_377;
+use snarkvm_curves::{bls12_377::FqParameters, AffineCurve, PairingEngine, ProjectiveCurve};
 use tracing_subscriber;
 
+use penumbra::single::group as pgroup;
 use std::{fs::OpenOptions, sync::Arc, time::Duration};
 use tokio::{sync::RwLock, task, time::sleep};
 use tracing::*;
-use penumbra::single::group as pgroup;
 
 use phase1_coordinator::penumbra;
-use snarkvm_utilities::serialize::CanonicalSerialize;
 use snarkvm_fields::{Field, Fp384};
+use snarkvm_utilities::serialize::CanonicalSerialize;
+use penumbra::proto::tools::summoning::v1alpha1::CeremonyCrs;
+use penumbra::proto::Message;
 
 fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyhow::Result<Coordinator> {
     Ok(Coordinator::new(environment.clone(), signature)?)
 }
 
 fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine) -> pgroup::G1 {
-    println!("{:?} {:?}", p.x, p.y); 
     let mut x_bytes = Vec::new();
     let mut y_bytes = Vec::new();
 
@@ -35,9 +37,15 @@ fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine) -> pgroup::G1 {
     let affine_ours = pgroup::G1Affine {
         x: pgroup::FBase::deserialize_uncompressed(&x_bytes[..]).unwrap(),
         y: pgroup::FBase::deserialize_uncompressed(&y_bytes[..]).unwrap(),
-        infinity: p.infinity
+        infinity: p.infinity,
     };
-    todo!()
+    affine_ours.into()
+}
+
+fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine) -> pgroup::G2 {
+    let mut bytes = Vec::new();
+    p.serialize_uncompressed(&mut bytes);
+    pgroup::G2Affine::deserialize_uncompressed(&bytes[..]).unwrap().into()
 }
 
 fn thing_we_want0<'a>(their_stuff: &Phase1<'a, Bls12_377>, d: usize) -> penumbra::single::Phase1CRSElements {
@@ -45,18 +53,36 @@ fn thing_we_want0<'a>(their_stuff: &Phase1<'a, Bls12_377>, d: usize) -> penumbra
         degree: d,
         raw: penumbra::single::Phase1RawCRSElements {
             alpha_1: convert(&their_stuff.alpha_tau_powers_g1[0]),
-            beta_1: todo!(),
-            beta_2: todo!(),
-            x_1: todo!(),
-            x_2: todo!(),
-            alpha_x_1: todo!(),
-            beta_x_1: todo!(),
-        }
+            beta_1: convert(&their_stuff.beta_tau_powers_g1[0]),
+            beta_2: convert2(&their_stuff.beta_g2),
+            x_1: their_stuff.tau_powers_g1[..(2 * d - 1)]
+                .iter()
+                .map(|x| convert(x))
+                .collect(),
+            x_2: their_stuff.tau_powers_g2[..d].iter().map(|x| convert2(x)).collect(),
+            alpha_x_1: their_stuff.alpha_tau_powers_g1[..d]
+                .iter()
+                .map(|x| convert(x))
+                .collect(),
+            beta_x_1: their_stuff.alpha_tau_powers_g1[..d]
+                .iter()
+                .map(|x| convert(x))
+                .collect(),
+        },
     }
 }
 
 fn thing_we_want<'a>(their_stuff: Phase1<'a, Bls12_377>) -> penumbra::all::Phase1CeremonyCRS {
-    todo!()
+    let [d0, d1, d2, d3, d4, d5, d6] = penumbra::all::circuit_sizes();
+    penumbra::all::Phase1CeremonyCRS([
+        thing_we_want0(&their_stuff, d0),
+        thing_we_want0(&their_stuff, d1),
+        thing_we_want0(&their_stuff, d2),
+        thing_we_want0(&their_stuff, d3),
+        thing_we_want0(&their_stuff, d4),
+        thing_we_want0(&their_stuff, d5),
+        thing_we_want0(&their_stuff, d6),
+    ])
 }
 
 #[tokio::main]
@@ -82,5 +108,8 @@ pub async fn main() -> anyhow::Result<()> {
         &parameters,
     )
     .expect("unable to read uncompressed accumulator");
+    let phase_1_root = thing_we_want(current_accumulator);
+                let proto_encoded_phase_1_root: CeremonyCrs = phase_1_root.try_into()?;
+                std::fs::write("phase1.bin", proto_encoded_phase_1_root.encode_to_vec())?;
     Ok(())
 }

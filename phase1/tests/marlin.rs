@@ -7,8 +7,7 @@ mod test {
     use snarkvm_algorithms::SNARK;
     use snarkvm_curves::{
         bls12_377::{Bls12_377, Fr},
-        PairingCurve,
-        PairingEngine,
+        PairingCurve, PairingEngine,
     };
     use snarkvm_fields::Field;
     use snarkvm_ledger::posw::{txids_to_roots, Marlin, PoswMarlin};

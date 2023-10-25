@@ -1,4 +1,4 @@
 pub mod all;
 mod parallel_utils;
 pub mod single;
-mod proto;
+pub mod proto;

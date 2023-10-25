@@ -390,7 +390,7 @@ impl TryFrom<pb::CeremonyCrs> for Phase1RawCeremonyCRS {
 
 /// Holds all of the CRS elements for phase1 in one struct.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Phase1CeremonyCRS([Phase1CRSElements; NUM_CIRCUITS]);
+pub struct Phase1CeremonyCRS(pub [Phase1CRSElements; NUM_CIRCUITS]);
 
 impl From<Phase1CeremonyCRS> for Phase1RawCeremonyCRS {
     fn from(value: Phase1CeremonyCRS) -> Self {

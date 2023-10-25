@@ -3,8 +3,7 @@ use setup_utils::{batch_exp, dense_multiexp, generate_powers_of_tau};
 
 use snarkvm_curves::{
     bls12_377::{Bls12_377, G1Affine},
-    AffineCurve,
-    PairingEngine,
+    AffineCurve, PairingEngine,
 };
 use snarkvm_fields::{Field, PrimeField, Zero};
 use snarkvm_utilities::UniformRand;

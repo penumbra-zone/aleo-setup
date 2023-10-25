@@ -3,8 +3,7 @@
 use crate::{buffer_size, CheckForCorrectness, Deserializer, Result, Serializer, UseCompression};
 
 use snarkvm_algorithms::{
-    cfg_into_iter,
-    cfg_iter,
+    cfg_into_iter, cfg_iter,
     fft::{DomainCoeff, EvaluationDomain},
 };
 use snarkvm_curves::{AffineCurve, PairingEngine, ProjectiveCurve};
@@ -267,13 +266,9 @@ mod tests {
     use crate::UseCompression;
     use phase1::{
         helpers::testing::{
-            setup_verify,
-            CheckForCorrectness as CheckForCorrectnessPhase1,
-            UseCompression as UseCompressionPhase1,
+            setup_verify, CheckForCorrectness as CheckForCorrectnessPhase1, UseCompression as UseCompressionPhase1,
         },
-        Phase1,
-        Phase1Parameters,
-        ProvingSystem,
+        Phase1, Phase1Parameters, ProvingSystem,
     };
 
     use snarkvm_curves::bls12_377::Bls12_377;
