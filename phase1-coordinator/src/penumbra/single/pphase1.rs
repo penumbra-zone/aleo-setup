@@ -185,8 +185,8 @@ impl Hashable for RawCRSElements {
 /// Not all elements of the final CRS are present here.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct CRSElements {
-    pub(crate) degree: usize,
-    pub(crate) raw: RawCRSElements,
+    pub degree: usize,
+    pub raw: RawCRSElements,
 }
 
 impl CRSElements {

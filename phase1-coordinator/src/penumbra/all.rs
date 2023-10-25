@@ -35,8 +35,8 @@ fn from_bytes_unchecked<T: CanonicalDeserialize>(data: &[u8]) -> Result<T> {
 
 pub const NUM_CIRCUITS: usize = 7;
 
-fn circuit_sizes() -> [usize; NUM_CIRCUITS] {
-    todo!()
+pub fn circuit_sizes() -> [usize; NUM_CIRCUITS] {
+    [0x10_000, 0x4_000, 0x10_000, 0x4_000, 0x8_000, 0x10_000, 0x200]
 }
 
 /// Holds all of the CRS elements for phase2 in one struct, before validation.
@@ -322,7 +322,7 @@ impl Phase2CeremonyContribution {
 
 /// Holds all of the CRS elements for phase1 in one struct, before validation.
 #[derive(Clone, Debug)]
-pub struct Phase1RawCeremonyCRS([Phase1RawCRSElements; NUM_CIRCUITS]);
+pub struct Phase1RawCeremonyCRS(pub(crate) [Phase1RawCRSElements; NUM_CIRCUITS]);
 
 impl Phase1RawCeremonyCRS {
     /// Skip validation, performing the conversion anyways.
@@ -613,4 +613,3 @@ impl AllExtraTransitionInformation {
         Ok(from_bytes_unchecked::<Self>(data)?)
     }
 }
-

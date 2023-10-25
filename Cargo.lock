@@ -1451,6 +1451,8 @@ dependencies = [
  "serial_test",
  "setup-utils",
  "snarkvm-curves",
+ "snarkvm-fields",
+ "snarkvm-utilities",
  "thiserror",
  "time 0.3.5",
  "tokio",
