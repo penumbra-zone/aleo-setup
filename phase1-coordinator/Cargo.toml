@@ -21,9 +21,13 @@ snarkvm-curves = { git = "https://github.com/AleoHQ/snarkVM.git", rev = "fc997c"
 ark-serialize = "0.4"
 ark-ec = "0.4"
 ark-ff = "0.4"
+bytes = "1"
 ark-groth16 = "0.4"
 ark-poly = "0.4"
 ark-relations = "0.4"
+pbjson = "0.6"
+pbjson-types = "0.6"
+pbjson-build = "0.6"
 decaf377 = "0.5"
 blake2b_simd = "0.5"
 rand_core = { version = "0.6", features = ["getrandom"] }
@@ -45,6 +49,7 @@ thiserror = { version = "1.0" }
 time = { version = "0.3", features = ["serde-human-readable", "macros"] }
 tokio = { version = "1.13", features = ["macros", "rt-multi-thread", "time", "sync", "signal"] }
 tracing = { version = "0.1" }
+prost = "0.12"
 tracing-subscriber = { version = "0.3" }
 # penumbra-proto = { git = "https://github.com/penumbra-zone/penumbra" } 
 
