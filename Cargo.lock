@@ -1420,6 +1420,7 @@ name = "phase1-coordinator"
 version = "0.3.0"
 dependencies = [
  "anyhow",
+ "ark-bls12-377",
  "ark-ec",
  "ark-ff",
  "ark-groth16",

@@ -30,6 +30,7 @@ pub type GT = PairingOutput<Bls12_377>;
 pub type F = <Bls12_377 as Pairing>::ScalarField;
 
 pub type FBase = <Bls12_377 as Pairing>::BaseField;
+pub type F2Base = ark_bls12_377::fq2::Fq2;
 
 /// The pairing operation between the two groups.
 pub fn pairing(a: impl Into<G1Prepared>, b: impl Into<G2Prepared>) -> GT {
@@ -98,22 +99,8 @@ fn swapped_pairing(a: impl Into<G2Prepared>, b: impl Into<G1Prepared>) -> GT {
     pairing(b, a)
 }
 
-make_batched_pairing_checker!(
-    BatchedPairingChecker11,
-    G1,
-    G1,
-    G2Prepared,
-    G2Prepared,
-    swapped_pairing
-);
-make_batched_pairing_checker!(
-    BatchedPairingChecker12,
-    G1,
-    G2,
-    G2Prepared,
-    G1Prepared,
-    pairing
-);
+make_batched_pairing_checker!(BatchedPairingChecker11, G1, G1, G2Prepared, G2Prepared, swapped_pairing);
+make_batched_pairing_checker!(BatchedPairingChecker12, G1, G2, G2Prepared, G1Prepared, pairing);
 
 /// The size of the hash we use.
 pub(crate) const HASH_SIZE: usize = 32;
@@ -140,9 +127,7 @@ impl GroupHasher {
     /// Because of BLAKE2's limitations, this has to be 16 bytes at most.
     /// This function will panic if that isn't the case.
     pub fn new(personalization: &'static [u8]) -> Self {
-        let state = blake2b_simd::Params::new()
-            .personal(personalization)
-            .to_state();
+        let state = blake2b_simd::Params::new().personal(personalization).to_state();
         Self { state }
     }
 

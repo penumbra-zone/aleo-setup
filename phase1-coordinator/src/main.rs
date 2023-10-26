@@ -31,8 +31,8 @@ fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: &str) -> pgroup::G
     let mut x_bytes = Vec::new();
     let mut y_bytes = Vec::new();
 
-    <Fp384<FqParameters> as CanonicalSerialize>::serialize_uncompressed(&p.x, &mut x_bytes).unwrap();
-    <Fp384<FqParameters> as CanonicalSerialize>::serialize_uncompressed(&p.y, &mut y_bytes).unwrap();
+    p.x.serialize_uncompressed(&mut x_bytes).unwrap();
+    p.y.serialize_uncompressed(&mut y_bytes).unwrap();
     let out = pgroup::G1Affine {
         x: pgroup::FBase::deserialize_uncompressed(&x_bytes[..]).unwrap(),
         y: pgroup::FBase::deserialize_uncompressed(&y_bytes[..]).unwrap(),
@@ -44,25 +44,61 @@ fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: &str) -> pgroup::G
     let out = pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap();
     */
     {
+        let mut out_x_bytes = Vec::new();
+        out.x.serialize_uncompressed(&mut out_x_bytes);
+        let mut out_y_bytes = Vec::new();
+        out.y.serialize_uncompressed(&mut out_y_bytes);
         let mut out_bytes = Vec::new();
         out.serialize_uncompressed(&mut out_bytes);
-        if bytes != out_bytes {
-            panic!("{}: left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
+        if x_bytes != out_x_bytes {
+            panic!("{} (x): left: {:X?}, right: {:X?}", debug, x_bytes, out_x_bytes);
         }
+        if y_bytes != out_y_bytes {
+            panic!("{} (y): left: {:X?}, right: {:X?}", debug, y_bytes, out_y_bytes);
+        }
+        /*
+        if bytes != out_bytes {
+            panic!("{} (x, y): left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
+        }
+        */
     }
     out.into()
 }
 
 fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine, debug: &str) -> pgroup::G2 {
+    let mut x_bytes = Vec::new();
+    let mut y_bytes = Vec::new();
+
+    p.x.serialize_uncompressed(&mut x_bytes).unwrap();
+    p.y.serialize_uncompressed(&mut y_bytes).unwrap();
+    let out = pgroup::G2Affine {
+        x: pgroup::F2Base::deserialize_uncompressed(&x_bytes[..]).unwrap(),
+        y: pgroup::F2Base::deserialize_uncompressed(&y_bytes[..]).unwrap(),
+        infinity: p.infinity,
+    };
     let mut bytes = Vec::new();
     p.serialize_uncompressed(&mut bytes).unwrap();
-    let out = pgroup::G2Affine::deserialize_uncompressed(&bytes[..]).unwrap();
+    /*
+    let out = pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap();
+    */
     {
+        let mut out_x_bytes = Vec::new();
+        out.x.serialize_uncompressed(&mut out_x_bytes);
+        let mut out_y_bytes = Vec::new();
+        out.y.serialize_uncompressed(&mut out_y_bytes);
         let mut out_bytes = Vec::new();
         out.serialize_uncompressed(&mut out_bytes);
-        if bytes != out_bytes {
-            panic!("{}: left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
+        if x_bytes != out_x_bytes {
+            panic!("{} (x): left: {:X?}, right: {:X?}", debug, x_bytes, out_x_bytes);
         }
+        if y_bytes != out_y_bytes {
+            panic!("{} (y): left: {:X?}, right: {:X?}", debug, y_bytes, out_y_bytes);
+        }
+        /*
+        if bytes != out_bytes {
+            panic!("{} (x, y): left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
+        }
+        */
     }
     out.into()
 }
@@ -140,6 +176,6 @@ pub async fn main() -> anyhow::Result<()> {
         .validate()
         .expect("should be valid");
     let proto_encoded_phase_1_root: CeremonyCrs = phase_1_root.try_into()?;
-    std::fs::write("phase1-v3.bin", proto_encoded_phase_1_root.encode_to_vec())?;
+    std::fs::write("phase1-v4.bin", proto_encoded_phase_1_root.encode_to_vec())?;
     Ok(())
 }
