@@ -1451,6 +1451,7 @@ dependencies = [
  "serde_with",
  "serial_test",
  "setup-utils",
+ "snarkvm-algorithms",
  "snarkvm-curves",
  "snarkvm-fields",
  "snarkvm-utilities",
