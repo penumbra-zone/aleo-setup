@@ -36,6 +36,9 @@ fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: &str) -> pgroup::G
 
     p.x.serialize_uncompressed(&mut x_bytes).unwrap();
     p.y.serialize_uncompressed(&mut y_bytes).unwrap();
+    if p.infinity {
+        panic!("{} infinity!", debug);
+    }
     let out = pgroup::G1Affine {
         x: pgroup::FBase::deserialize_uncompressed(&x_bytes[..]).unwrap(),
         y: pgroup::FBase::deserialize_uncompressed(&y_bytes[..]).unwrap(),
@@ -74,6 +77,9 @@ fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine, debug: &str) -> pgroup::
 
     p.x.serialize_uncompressed(&mut x_bytes).unwrap();
     p.y.serialize_uncompressed(&mut y_bytes).unwrap();
+    if p.infinity {
+        panic!("{} infinity!", debug);
+    }
     let out = pgroup::G2Affine {
         x: pgroup::F2Base::deserialize_uncompressed(&x_bytes[..]).unwrap(),
         y: pgroup::F2Base::deserialize_uncompressed(&y_bytes[..]).unwrap(),
