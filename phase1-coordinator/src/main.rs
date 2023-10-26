@@ -1,4 +1,7 @@
 use ark_ec::Group as _;
+use ark_ff::biginteger::BigInt as ArkBigInt;
+use ark_ff::fields::PrimeField as ArkPrimeField;
+use ark_ff::BigInteger384 as ArkBigInt384;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize as _};
 use memmap::MmapOptions;
 use phase1::{Phase1, Phase1Parameters};
@@ -9,7 +12,8 @@ use phase1_coordinator::{
 };
 use setup_utils::{CheckForCorrectness, UseCompression};
 use snarkvm_curves::bls12_377::Bls12_377;
-use snarkvm_curves::{bls12_377::FqParameters, AffineCurve, PairingEngine, ProjectiveCurve};
+use snarkvm_curves::{bls12_377::Fq2Parameters, bls12_377::FqParameters, AffineCurve, PairingEngine, ProjectiveCurve};
+use snarkvm_fields::Fp2;
 use std::convert::TryInto;
 use tracing_subscriber;
 
@@ -24,92 +28,43 @@ use phase1_coordinator::penumbra;
 use rand_core::{CryptoRng, OsRng, RngCore};
 use snarkvm_algorithms::msm::variable_base::VariableBaseMSM;
 use snarkvm_fields::{Field, Fp384, PrimeField};
+use snarkvm_utilities::biginteger::biginteger::BigInteger384 as SvmBigInt;
 use snarkvm_utilities::serialize::CanonicalSerialize;
+
+type SVMFp = Fp384<FqParameters>;
+type SVMF2p = Fp2<Fq2Parameters>;
 
 fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyhow::Result<Coordinator> {
     Ok(Coordinator::new(environment.clone(), signature)?)
 }
 
-fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: &str) -> pgroup::G1 {
-    let mut x_bytes = Vec::new();
-    let mut y_bytes = Vec::new();
+fn convert_base_field(x: SVMFp) -> pgroup::FBase {
+    <pgroup::FBase as ArkPrimeField>::from_bigint(ArkBigInt(x.to_repr().0)).unwrap()
+}
 
-    p.x.serialize_uncompressed(&mut x_bytes).unwrap();
-    p.y.serialize_uncompressed(&mut y_bytes).unwrap();
-    if p.infinity {
-        panic!("{} infinity!", debug);
+fn convert_extension_field(x: SVMF2p) -> pgroup::F2Base {
+    pgroup::F2Base {
+        c0: convert_base_field(x.c0),
+        c1: convert_base_field(x.c1),
     }
-    let out = pgroup::G1Affine {
-        x: pgroup::FBase::deserialize_uncompressed(&x_bytes[..]).unwrap(),
-        y: pgroup::FBase::deserialize_uncompressed(&y_bytes[..]).unwrap(),
+}
+
+fn convert(p: &<Bls12_377 as PairingEngine>::G1Affine, debug: &str) -> pgroup::G1 {
+    pgroup::G1Affine {
+        x: convert_base_field(p.x),
+        y: convert_base_field(p.y),
         infinity: p.infinity,
-    };
-    let mut bytes = Vec::new();
-    p.serialize_uncompressed(&mut bytes).unwrap();
-    /*
-    let out = pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap();
-    */
-    {
-        let mut out_x_bytes = Vec::new();
-        out.x.serialize_uncompressed(&mut out_x_bytes);
-        let mut out_y_bytes = Vec::new();
-        out.y.serialize_uncompressed(&mut out_y_bytes);
-        let mut out_bytes = Vec::new();
-        out.serialize_uncompressed(&mut out_bytes);
-        if x_bytes != out_x_bytes {
-            panic!("{} (x): left: {:X?}, right: {:X?}", debug, x_bytes, out_x_bytes);
-        }
-        if y_bytes != out_y_bytes {
-            panic!("{} (y): left: {:X?}, right: {:X?}", debug, y_bytes, out_y_bytes);
-        }
-        /*
-        if bytes != out_bytes {
-            panic!("{} (x, y): left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
-        }
-        */
     }
-    out.into()
+    .into()
 }
 
 fn convert2(p: &<Bls12_377 as PairingEngine>::G2Affine, debug: &str) -> pgroup::G2 {
-    let mut x_bytes = Vec::new();
-    let mut y_bytes = Vec::new();
-
-    p.x.serialize_uncompressed(&mut x_bytes).unwrap();
-    p.y.serialize_uncompressed(&mut y_bytes).unwrap();
-    if p.infinity {
-        panic!("{} infinity!", debug);
-    }
-    let out = pgroup::G2Affine {
-        x: pgroup::F2Base::deserialize_uncompressed(&x_bytes[..]).unwrap(),
-        y: pgroup::F2Base::deserialize_uncompressed(&y_bytes[..]).unwrap(),
+    pgroup::G2Affine {
+        x: convert_extension_field(p.x),
+        y: convert_extension_field(p.y),
         infinity: p.infinity,
-    };
-    let mut bytes = Vec::new();
-    p.serialize_uncompressed(&mut bytes).unwrap();
-    /*
-    let out = pgroup::G1Affine::deserialize_uncompressed(&bytes[..]).unwrap();
-    */
-    {
-        let mut out_x_bytes = Vec::new();
-        out.x.serialize_uncompressed(&mut out_x_bytes);
-        let mut out_y_bytes = Vec::new();
-        out.y.serialize_uncompressed(&mut out_y_bytes);
-        let mut out_bytes = Vec::new();
-        out.serialize_uncompressed(&mut out_bytes);
-        if x_bytes != out_x_bytes {
-            panic!("{} (x): left: {:X?}, right: {:X?}", debug, x_bytes, out_x_bytes);
-        }
-        if y_bytes != out_y_bytes {
-            panic!("{} (y): left: {:X?}, right: {:X?}", debug, y_bytes, out_y_bytes);
-        }
-        /*
-        if bytes != out_bytes {
-            panic!("{} (x, y): left: {:X?}, right: {:X?}", debug, bytes, out_bytes);
-        }
-        */
     }
-    out.into()
+    .into()
 }
 
 fn thing_we_want0<'a>(their_stuff: &Phase1<'a, Bls12_377>, d: usize) -> penumbra::single::Phase1CRSElements {
