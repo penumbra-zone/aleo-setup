@@ -288,13 +288,14 @@ fn validate<'a>(their_stuff: &Phase1<'a, Bls12_377>) {
     //
     // 5. Check that beta and x are connected in beta_x.
     println!("(them) checking 5");
-    let mut checker2 = BatchedPairingChecker12::new(G2::prime_subgroup_generator(), their_stuff.tau_powers_g1[0]);
+    let mut checker2 = BatchedPairingChecker12::new(G2::prime_subgroup_generator(), their_stuff.beta_tau_powers_g1[0]);
     for (&beta_x_i, &x_i) in their_stuff
         .beta_tau_powers_g1
         .iter()
         .zip(their_stuff.tau_powers_g2.iter())
     {
         checker2.add(beta_x_i, x_i);
+        break;
     }
     if !checker2.check(&mut OsRng) {
         panic!("")
