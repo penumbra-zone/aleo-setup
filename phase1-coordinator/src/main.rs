@@ -41,7 +41,9 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
 
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
-    println!("HIII");
+    let _ = tracing_subscriber::fmt::try_init();
+
+    tracing::info!("Starting");
     let parameters = Phase1Parameters::<Bls12_377>::new_full(phase1::ProvingSystem::Groth16, 19, 2_097_152);
     // Try to load response file from disk.
     let reader = OpenOptions::new()
@@ -54,17 +56,30 @@ pub async fn main() -> anyhow::Result<()> {
             .expect("unable to create a memory map for input")
     };
 
+    tracing::info!("Opened file, deserializing into current_accumulator");
     // Deserialize the accumulator
     let current_accumulator = Phase1::deserialize(
         &response_readable_map,
-        UseCompression::No,
+        UseCompression::No, // fails if you pass Yes
         // We've already run with Full
         CheckForCorrectness::No,
         &parameters,
     )
     .expect("unable to read uncompressed accumulator");
+    tracing::info!("Finished deserializing");
+
+    tracing::info!("Validating accumulator");
     shim::validate(&current_accumulator);
-    let data = shim::convert_phase1(current_accumulator);
-    shim::validate_and_write("phase1-v5.bin", data);
+
+    tracing::info!("Converting phase1 data (legacy method)");
+    //let data = shim::convert_phase1(current_accumulator.clone());
+
+    tracing::info!("Converting phase1 data (new method)");
+    let data_v2 = shim::convert_phase1_v2(current_accumulator);
+    tracing::info!("Validating phase1 data (new method)");
+    let data_v2_validated = penumbra_proof_setup::all::Phase1CeremonyCRS::try_from(data_v2)?;
+
+    tracing::info!("running validate_and_write");
+    //shim::validate_and_write("phase1-v5.bin", data);
     Ok(())
 }

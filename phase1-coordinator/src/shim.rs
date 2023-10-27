@@ -1,6 +1,7 @@
 //! This module exists to facilitate conversion between data types.
-//use ark_ec::Group as _;
-//use ark_ff::biginteger::BigInt as ArkBigInt;
+use ark_ec::CurveGroup;
+use ark_ff::BigInteger384;
+use ark_ff::biginteger::BigInt as ArkBigInt;
 //use ark_ff::biginteger::BigInteger as _;
 use ark_ff::fields::PrimeField as ArkPrimeField;
 //use ark_ff::BigInteger384 as ArkBigInt384;
@@ -23,6 +24,82 @@ use snarkvm_algorithms::msm::variable_base::VariableBaseMSM;
 use snarkvm_fields::{Fp384, PrimeField};
 //use snarkvm_utilities::biginteger::biginteger::BigInteger384 as SvmBigInt;
 use snarkvm_utilities::serialize::CanonicalSerialize;
+
+pub fn convert_phase1_v2<'a>(their_stuff: Phase1<'a, Bls12_377>) -> penumbra_proof_setup::all::Phase1RawCeremonyCRS {
+    let [d0, d1, d2, d3, d4, d5, d6] = penumbra::all::circuit_sizes();
+    penumbra_proof_setup::all::Phase1RawCeremonyCRS::from_elements([
+        convert_phase1_v2_inner(&their_stuff, d0),
+        convert_phase1_v2_inner(&their_stuff, d1),
+        convert_phase1_v2_inner(&their_stuff, d2),
+        convert_phase1_v2_inner(&their_stuff, d3),
+        convert_phase1_v2_inner(&their_stuff, d4),
+        convert_phase1_v2_inner(&their_stuff, d5),
+        convert_phase1_v2_inner(&their_stuff, d6),
+    ])
+}
+
+fn convert_phase1_v2_inner<'a>(
+    their_stuff: &Phase1<'a, Bls12_377>,
+    truncate_at_degree: usize,
+) -> penumbra_proof_setup::single::Phase1RawCRSElements {
+    let d = truncate_at_degree;
+    penumbra_proof_setup::single::Phase1RawCRSElements {
+        alpha_1: convert_g1(&their_stuff.alpha_tau_powers_g1[0]),
+        beta_1: convert_g1(&their_stuff.beta_tau_powers_g1[0]),
+        beta_2: convert_g2(&their_stuff.beta_g2),
+        x_1: their_stuff.tau_powers_g1.iter().take(2 * d - 1).map(convert_g1).collect(),
+        x_2: their_stuff.tau_powers_g2.iter().take(d).map(convert_g2).collect(),
+        alpha_x_1: their_stuff.alpha_tau_powers_g1.iter().take(d).map(convert_g1).collect(),
+        beta_x_1: their_stuff.beta_tau_powers_g1.iter().take(d).map(convert_g1).collect(),
+    }
+}
+
+fn convert_fp(x: SVMFp) -> <penumbra_proof_setup::single::group::G1 as CurveGroup>::BaseField {
+    // We assume this returns the actual number associated with the field element.
+    let x_repr = x.to_repr();
+    // We assume these are u64 limb values, least significant to most significant.
+    let x_repr_limbs = x_repr.0;
+
+    let x_repr_new = ArkBigInt::new(x_repr_limbs);
+    let x_new = <penumbra_proof_setup::single::group::G1 as CurveGroup>::BaseField::from_bigint(x_repr_new).expect("number should be in range");
+
+    x_new
+}
+
+fn convert_fp_ext(x: SVMF2p) -> <penumbra_proof_setup::single::group::G2 as CurveGroup>::BaseField {
+    <penumbra_proof_setup::single::group::G2 as CurveGroup>::BaseField::new(
+        convert_fp(x.c0),
+        convert_fp(x.c1),
+    ) 
+}
+
+fn convert_g1(p: &<Bls12_377 as PairingEngine>::G1Affine) -> penumbra_proof_setup::single::group::G1 {
+    assert!(!p.infinity);
+
+    let x_converted = convert_fp(p.x);
+    let y_converted = convert_fp(p.y);
+
+
+    let p_affine = 
+    <penumbra_proof_setup::single::group::G1 as CurveGroup>::Affine::new(x_converted, y_converted);
+
+    p_affine.into()
+}
+
+fn convert_g2(p: &<Bls12_377 as PairingEngine>::G2Affine) -> penumbra_proof_setup::single::group::G2 {
+    assert!(!p.infinity);
+
+    let x_converted = convert_fp_ext(p.x);
+    let y_converted = convert_fp_ext(p.y);
+
+
+    let p_affine = 
+    <penumbra_proof_setup::single::group::G2 as CurveGroup>::Affine::new(x_converted, y_converted);
+
+    p_affine.into()
+}
+
+
 
 type SVMFp = Fp384<FqParameters>;
 type SVMF2p = Fp2<Fq2Parameters>;

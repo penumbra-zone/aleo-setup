@@ -57,6 +57,11 @@ prost = "0.12"
 tracing-subscriber = { version = "0.3" }
 # penumbra-proto = { git = "https://github.com/penumbra-zone/penumbra" } 
 
+# Penumbra crates, take 2.
+penumbra-proof-setup = { git = "https://github.com/penumbra-zone/penumbra", branch = "proof-setup-api-tweaks" }
+penumbra-proof-params = { git = "https://github.com/penumbra-zone/penumbra", branch = "proof-setup-api-tweaks", features = ["download-proving-keys"] }
+penumbra-proto = { git = "https://github.com/penumbra-zone/penumbra", branch = "proof-setup-api-tweaks" } 
+
 [dev-dependencies]
 serial_test = { version = "0.5" }
 tracing-subscriber = { version = "0.3" }
@@ -65,5 +70,5 @@ proptest = "1.3.1"
 [features]
 default = []
 operator = ["testing", "setup-utils/cli"]
-parallel = ["phase1/parallel", "setup-utils/parallel"]
+parallel = ["phase1/parallel", "setup-utils/parallel", "penumbra-proof-setup/parallel"]
 testing = []
