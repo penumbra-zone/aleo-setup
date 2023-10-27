@@ -15,6 +15,7 @@ use setup_utils::{CheckForCorrectness, UseCompression};
 use snarkvm_curves::bls12_377::Bls12_377;
 use snarkvm_curves::{bls12_377::Fq2Parameters, bls12_377::FqParameters, AffineCurve, PairingEngine, ProjectiveCurve};
 use snarkvm_fields::Fp2;
+use snarkvm_utilities::ToBytes;
 use std::convert::TryInto;
 use tracing_subscriber;
 
@@ -40,8 +41,7 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
 }
 
 fn convert_base_field(x: SVMFp) -> pgroup::FBase {
-    let out =
-        <pgroup::FBase as ArkPrimeField>::from_bigint(ArkBigInt::from_bits_le(&x.to_repr().to_bits_le())).unwrap();
+    let out = <pgroup::FBase as ArkPrimeField>::from_le_bytes_mod_order(&x.to_repr().to_bytes_le().unwrap());
     let in_bytes = {
         let mut data = Vec::new();
         x.serialize(&mut data);
