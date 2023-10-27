@@ -1,5 +1,6 @@
 use ark_ec::Group as _;
 use ark_ff::biginteger::BigInt as ArkBigInt;
+use ark_ff::biginteger::BigInteger as _;
 use ark_ff::fields::PrimeField as ArkPrimeField;
 use ark_ff::BigInteger384 as ArkBigInt384;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize as _};
@@ -29,7 +30,7 @@ use rand_core::{CryptoRng, OsRng, RngCore};
 use snarkvm_algorithms::msm::variable_base::VariableBaseMSM;
 use snarkvm_fields::{Field, Fp384, PrimeField};
 use snarkvm_utilities::biginteger::biginteger::BigInteger384 as SvmBigInt;
-use snarkvm_utilities::serialize::CanonicalSerialize;
+use snarkvm_utilities::{serialize::CanonicalSerialize, ToBits};
 
 type SVMFp = Fp384<FqParameters>;
 type SVMF2p = Fp2<Fq2Parameters>;
@@ -39,7 +40,8 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
 }
 
 fn convert_base_field(x: SVMFp) -> pgroup::FBase {
-//    let out = <pgroup::FBase as ArkPrimeField>::from_bigint(ArkBigInt(x.to_repr_unchecked().0)).unwrap();
+    let out =
+        <pgroup::FBase as ArkPrimeField>::from_bigint(ArkBigInt::from_bits_le(&x.to_repr().to_bits_le())).unwrap();
     let in_bytes = {
         let mut data = Vec::new();
         x.serialize(&mut data);
@@ -48,7 +50,7 @@ fn convert_base_field(x: SVMFp) -> pgroup::FBase {
     let out = pgroup::FBase::deserialize_uncompressed(in_bytes.as_slice()).unwrap();
     let out_bytes = {
         let mut data = Vec::new();
-        out.serialize_uncompressed(&mut data);
+        out.serialize_compressed(&mut data);
         data
     };
     assert_eq!(in_bytes, out_bytes);
