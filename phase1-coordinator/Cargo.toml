@@ -60,6 +60,7 @@ tracing-subscriber = { version = "0.3" }
 [dev-dependencies]
 serial_test = { version = "0.5" }
 tracing-subscriber = { version = "0.3" }
+proptest = "1.3.1"
 
 [features]
 default = []

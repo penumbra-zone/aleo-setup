@@ -59,3 +59,4 @@ pub mod testing;
 pub mod tests;
 
 pub mod penumbra;
+pub mod shim;
