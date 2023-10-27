@@ -39,7 +39,20 @@ fn coordinator(environment: &Environment, signature: Arc<dyn Signature>) -> anyh
 }
 
 fn convert_base_field(x: SVMFp) -> pgroup::FBase {
-    <pgroup::FBase as ArkPrimeField>::from_bigint(ArkBigInt(x.to_repr().0)).unwrap()
+//    let out = <pgroup::FBase as ArkPrimeField>::from_bigint(ArkBigInt(x.to_repr_unchecked().0)).unwrap();
+    let in_bytes = {
+        let mut data = Vec::new();
+        x.serialize(&mut data);
+        data
+    };
+    let out = pgroup::FBase::deserialize_uncompressed(in_bytes.as_slice()).unwrap();
+    let out_bytes = {
+        let mut data = Vec::new();
+        out.serialize_uncompressed(&mut data);
+        data
+    };
+    assert_eq!(in_bytes, out_bytes);
+    out
 }
 
 fn convert_extension_field(x: SVMF2p) -> pgroup::F2Base {
