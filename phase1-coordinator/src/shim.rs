@@ -57,7 +57,6 @@ impl<'a, 'b> From<&'b Phase1<'a, Bls12_377>> for TheirStuff {
     }
 }
 
-
 pub fn convert_phase1_v2<'a>(their_stuff: TheirStuff) -> penumbra_proof_setup::all::Phase1RawCeremonyCRS {
     let [d0, d1, d2, d3, d4, d5, d6] = penumbra::all::circuit_sizes();
     penumbra_proof_setup::all::Phase1RawCeremonyCRS::from_elements([
@@ -399,6 +398,7 @@ pub fn write(file: &str, data: penumbra_proof_setup::all::Phase1CeremonyCRS) {
 mod test {
     use super::*;
     use proptest::prelude::*;
+    use ark_ec::Group;
 
     prop_compose! {
         fn arb_scalar()(limbs0 in prop::array::uniform32(any::<u8>()), limbs1 in prop::array::uniform16(any::<u8>())) -> Fr {
@@ -444,10 +444,34 @@ mod test {
 
     proptest! {
         #[test]
+        fn test_g1_conversion_respects_scalars(mut x in 1u64..) {
+            if x == 0 {
+                x = 1;
+            }
+            let their_x_1 = <Bls12_377 as PairingEngine>::G1Affine::prime_subgroup_generator() * Fr::from(x);
+            let out_x_1 = penumbra_proof_setup::single::group::G1::generator() * penumbra_proof_setup::single::group::F::from(x);
+            assert_eq!(convert_g1(&their_x_1).into_affine(), out_x_1.into_affine());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_g2_conversion_respects_scalars(mut x in 1u64..) {
+            if x == 0 {
+                x = 1;
+            }
+            let their_x_2 = <Bls12_377 as PairingEngine>::G2Affine::prime_subgroup_generator() * Fr::from(x);
+            let out_x_2 = penumbra_proof_setup::single::group::G2::generator() * penumbra_proof_setup::single::group::F::from(x);
+            assert_eq!(convert_g2(&their_x_2).into_affine(), out_x_2.into_affine());
+        }
+    }
+
+    proptest! {
+        #[test]
         fn test_phase_conversion_works(their_stuff in arb_their_stuff(4)) {
             validate(&their_stuff);
             let converted = convert_phase1_v2(their_stuff);
-        let validated = penumbra_proof_setup::all::Phase1CeremonyCRS::try_from(converted);
+            let validated = penumbra_proof_setup::all::Phase1CeremonyCRS::try_from(converted);
             assert!(validated.is_ok());
         }
     }
