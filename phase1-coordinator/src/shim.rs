@@ -1,14 +1,14 @@
 //! This module exists to facilitate conversion between data types.
 use ark_ec::CurveGroup;
-use ark_ff::BigInteger384;
 use ark_ff::biginteger::BigInt as ArkBigInt;
+use ark_ff::BigInteger384;
 //use ark_ff::biginteger::BigInteger as _;
 use ark_ff::fields::PrimeField as ArkPrimeField;
 //use ark_ff::BigInteger384 as ArkBigInt384;
 use ark_serialize::CanonicalSerialize as _;
 use phase1::Phase1;
 //use setup_utils::{CheckForCorrectness, UseCompression};
-use snarkvm_curves::bls12_377::Bls12_377;
+use snarkvm_curves::bls12_377::{Bls12_377, Fr};
 use snarkvm_curves::{bls12_377::Fq2Parameters, bls12_377::FqParameters, AffineCurve, PairingEngine};
 use snarkvm_fields::Fp2;
 use snarkvm_utilities::ToBytes;
@@ -17,15 +17,48 @@ use std::convert::TryInto;
 use crate::penumbra;
 use crate::penumbra::single::group as pgroup;
 
-use crate::penumbra::proto::tools::summoning::v1alpha1::CeremonyCrs;
-use crate::penumbra::proto::Message;
+use penumbra_proto::{tools::summoning::v1alpha1::CeremonyCrs, Message};
 use rand_core::{CryptoRng, OsRng, RngCore};
 use snarkvm_algorithms::msm::variable_base::VariableBaseMSM;
 use snarkvm_fields::{Fp384, PrimeField};
 //use snarkvm_utilities::biginteger::biginteger::BigInteger384 as SvmBigInt;
 use snarkvm_utilities::serialize::CanonicalSerialize;
 
-pub fn convert_phase1_v2<'a>(their_stuff: Phase1<'a, Bls12_377>) -> penumbra_proof_setup::all::Phase1RawCeremonyCRS {
+#[derive(Clone, Debug)]
+pub struct TheirStuff {
+    tau_powers_g1: Vec<<Bls12_377 as PairingEngine>::G1Affine>,
+    tau_powers_g2: Vec<<Bls12_377 as PairingEngine>::G2Affine>,
+    alpha_tau_powers_g1: Vec<<Bls12_377 as PairingEngine>::G1Affine>,
+    beta_tau_powers_g1: Vec<<Bls12_377 as PairingEngine>::G1Affine>,
+    beta_g2: <Bls12_377 as PairingEngine>::G2Affine,
+}
+
+impl<'a> From<Phase1<'a, Bls12_377>> for TheirStuff {
+    fn from(value: Phase1<'a, Bls12_377>) -> Self {
+        Self {
+            tau_powers_g1: value.tau_powers_g1,
+            tau_powers_g2: value.tau_powers_g2,
+            alpha_tau_powers_g1: value.alpha_tau_powers_g1,
+            beta_tau_powers_g1: value.beta_tau_powers_g1,
+            beta_g2: value.beta_g2,
+        }
+    }
+}
+
+impl<'a, 'b> From<&'b Phase1<'a, Bls12_377>> for TheirStuff {
+    fn from(value: &'b Phase1<'a, Bls12_377>) -> Self {
+        Self {
+            tau_powers_g1: value.tau_powers_g1.clone(),
+            tau_powers_g2: value.tau_powers_g2.clone(),
+            alpha_tau_powers_g1: value.alpha_tau_powers_g1.clone(),
+            beta_tau_powers_g1: value.beta_tau_powers_g1.clone(),
+            beta_g2: value.beta_g2.clone(),
+        }
+    }
+}
+
+
+pub fn convert_phase1_v2<'a>(their_stuff: TheirStuff) -> penumbra_proof_setup::all::Phase1RawCeremonyCRS {
     let [d0, d1, d2, d3, d4, d5, d6] = penumbra::all::circuit_sizes();
     penumbra_proof_setup::all::Phase1RawCeremonyCRS::from_elements([
         convert_phase1_v2_inner(&their_stuff, d0),
@@ -39,7 +72,7 @@ pub fn convert_phase1_v2<'a>(their_stuff: Phase1<'a, Bls12_377>) -> penumbra_pro
 }
 
 fn convert_phase1_v2_inner<'a>(
-    their_stuff: &Phase1<'a, Bls12_377>,
+    their_stuff: &TheirStuff,
     truncate_at_degree: usize,
 ) -> penumbra_proof_setup::single::Phase1RawCRSElements {
     let d = truncate_at_degree;
@@ -47,7 +80,12 @@ fn convert_phase1_v2_inner<'a>(
         alpha_1: convert_g1(&their_stuff.alpha_tau_powers_g1[0]),
         beta_1: convert_g1(&their_stuff.beta_tau_powers_g1[0]),
         beta_2: convert_g2(&their_stuff.beta_g2),
-        x_1: their_stuff.tau_powers_g1.iter().take(2 * d - 1).map(convert_g1).collect(),
+        x_1: their_stuff
+            .tau_powers_g1
+            .iter()
+            .take(2 * d - 1)
+            .map(convert_g1)
+            .collect(),
         x_2: their_stuff.tau_powers_g2.iter().take(d).map(convert_g2).collect(),
         alpha_x_1: their_stuff.alpha_tau_powers_g1.iter().take(d).map(convert_g1).collect(),
         beta_x_1: their_stuff.beta_tau_powers_g1.iter().take(d).map(convert_g1).collect(),
@@ -61,45 +99,41 @@ fn convert_fp(x: SVMFp) -> <penumbra_proof_setup::single::group::G1 as CurveGrou
     let x_repr_limbs = x_repr.0;
 
     let x_repr_new = ArkBigInt::new(x_repr_limbs);
-    let x_new = <penumbra_proof_setup::single::group::G1 as CurveGroup>::BaseField::from_bigint(x_repr_new).expect("number should be in range");
+    let x_new = <penumbra_proof_setup::single::group::G1 as CurveGroup>::BaseField::from_bigint(x_repr_new)
+        .expect("number should be in range");
 
     x_new
 }
 
 fn convert_fp_ext(x: SVMF2p) -> <penumbra_proof_setup::single::group::G2 as CurveGroup>::BaseField {
-    <penumbra_proof_setup::single::group::G2 as CurveGroup>::BaseField::new(
-        convert_fp(x.c0),
-        convert_fp(x.c1),
-    ) 
+    <penumbra_proof_setup::single::group::G2 as CurveGroup>::BaseField::new(convert_fp(x.c0), convert_fp(x.c1))
 }
 
 fn convert_g1(p: &<Bls12_377 as PairingEngine>::G1Affine) -> penumbra_proof_setup::single::group::G1 {
+    let p = p.mul_by_cofactor();
     assert!(!p.infinity);
 
     let x_converted = convert_fp(p.x);
     let y_converted = convert_fp(p.y);
 
-
-    let p_affine = 
-    <penumbra_proof_setup::single::group::G1 as CurveGroup>::Affine::new(x_converted, y_converted);
+    let p_affine =
+        <penumbra_proof_setup::single::group::G1 as CurveGroup>::Affine::new_unchecked(x_converted, y_converted);
 
     p_affine.into()
 }
 
 fn convert_g2(p: &<Bls12_377 as PairingEngine>::G2Affine) -> penumbra_proof_setup::single::group::G2 {
+    let p = p.mul_by_cofactor();
     assert!(!p.infinity);
 
     let x_converted = convert_fp_ext(p.x);
     let y_converted = convert_fp_ext(p.y);
 
-
-    let p_affine = 
-    <penumbra_proof_setup::single::group::G2 as CurveGroup>::Affine::new(x_converted, y_converted);
+    let p_affine =
+        <penumbra_proof_setup::single::group::G2 as CurveGroup>::Affine::new_unchecked(x_converted, y_converted);
 
     p_affine.into()
 }
-
-
 
 type SVMFp = Fp384<FqParameters>;
 type SVMF2p = Fp2<Fq2Parameters>;
@@ -196,7 +230,7 @@ pub fn convert_phase1<'a>(their_stuff: Phase1<'a, Bls12_377>) -> penumbra::all::
     ])
 }
 
-pub fn validate<'a>(their_stuff: &Phase1<'a, Bls12_377>) {
+pub fn validate<'a>(their_stuff: &TheirStuff) {
     type F = <Bls12_377 as PairingEngine>::Fr;
     type G1 = <Bls12_377 as PairingEngine>::G1Affine;
     type G2 = <Bls12_377 as PairingEngine>::G2Affine;
@@ -356,20 +390,65 @@ pub fn validate<'a>(their_stuff: &Phase1<'a, Bls12_377>) {
     }
 }
 
-pub fn validate_and_write(file: &str, data: penumbra::all::Phase1CeremonyCRS) {
-    penumbra::all::Phase1RawCeremonyCRS::from(data.clone())
-        .validate()
-        .expect("should be valid");
+pub fn write(file: &str, data: penumbra_proof_setup::all::Phase1CeremonyCRS) {
     let proto_encoded_phase_1_root: CeremonyCrs = data.try_into().expect("failed to convert to a protobuf");
     std::fs::write(file, proto_encoded_phase_1_root.encode_to_vec()).expect("failed to write phase1 data");
 }
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use proptest::prelude::*;
 
-    #[test]
-    fn test_basic_idea() {
-        assert_eq!(2 + 2, 4);
+    prop_compose! {
+        fn arb_scalar()(limbs0 in prop::array::uniform32(any::<u8>()), limbs1 in prop::array::uniform16(any::<u8>())) -> Fr {
+            let mut limbs = [0u8; 48];
+            limbs[..32].copy_from_slice(&limbs0);
+            limbs[32..48].copy_from_slice(&limbs1);
+            Fr::from_le_bytes_mod_order(&limbs)
+        }
+    }
+
+    prop_compose! {
+        fn arb_scalar_nonzero()(x in arb_scalar()) -> Fr {
+            if x == Fr::from(0u64) {
+                return Fr::from(1u64);
+            }
+            x
+        }
+    }
+
+    prop_compose! {
+        fn arb_their_stuff(d: usize)(tau in arb_scalar_nonzero(), alpha in arb_scalar_nonzero(), beta in arb_scalar_nonzero()) -> TheirStuff {
+            let mut tau_i = Fr::from(1u64);
+
+            let mut tau_powers_g1 = Vec::new();
+            let mut tau_powers_g2 = Vec::new();
+            let mut alpha_tau_powers_g1 = Vec::new();
+            let mut beta_tau_powers_g1 = Vec::new();
+
+            for _ in 0..d {
+                tau_powers_g1.push(<Bls12_377 as PairingEngine>::G1Affine::prime_subgroup_generator() * tau_i);
+                tau_powers_g2.push(<Bls12_377 as PairingEngine>::G2Affine::prime_subgroup_generator() * tau_i);
+                alpha_tau_powers_g1.push(<Bls12_377 as PairingEngine>::G1Affine::prime_subgroup_generator() * (alpha * tau_i));
+                beta_tau_powers_g1.push(<Bls12_377 as PairingEngine>::G1Affine::prime_subgroup_generator() * (beta * tau_i));
+                tau_i *= tau;
+            }
+            for _ in 0..d - 1 {
+                tau_powers_g1.push(<Bls12_377 as PairingEngine>::G1Affine::prime_subgroup_generator() * tau_i);
+                tau_i *= tau;
+            }
+            TheirStuff { tau_powers_g1, tau_powers_g2, alpha_tau_powers_g1, beta_tau_powers_g1, beta_g2: <Bls12_377 as PairingEngine>::G2Affine::prime_subgroup_generator() * beta }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_phase_conversion_works(their_stuff in arb_their_stuff(4)) {
+            validate(&their_stuff);
+            let converted = convert_phase1_v2(their_stuff);
+        let validated = penumbra_proof_setup::all::Phase1CeremonyCRS::try_from(converted);
+            assert!(validated.is_ok());
+        }
     }
 }

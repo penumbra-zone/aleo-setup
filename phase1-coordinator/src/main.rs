@@ -69,17 +69,17 @@ pub async fn main() -> anyhow::Result<()> {
     tracing::info!("Finished deserializing");
 
     tracing::info!("Validating accumulator");
-    shim::validate(&current_accumulator);
+    shim::validate(&shim::TheirStuff::from(&current_accumulator));
 
     tracing::info!("Converting phase1 data (legacy method)");
     //let data = shim::convert_phase1(current_accumulator.clone());
 
     tracing::info!("Converting phase1 data (new method)");
-    let data_v2 = shim::convert_phase1_v2(current_accumulator);
+    let data_v2 = shim::convert_phase1_v2(shim::TheirStuff::from(current_accumulator));
     tracing::info!("Validating phase1 data (new method)");
     let data_v2_validated = penumbra_proof_setup::all::Phase1CeremonyCRS::try_from(data_v2)?;
 
     tracing::info!("running validate_and_write");
-    //shim::validate_and_write("phase1-v5.bin", data);
+    shim::write("phase1-v5.bin", data_v2_validated);
     Ok(())
 }
