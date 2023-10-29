@@ -410,6 +410,15 @@ mod test {
     }
 
     prop_compose! {
+        fn arb_basefield()(limbs0 in prop::array::uniform32(any::<u8>()), limbs1 in prop::array::uniform16(any::<u8>())) -> SVMFp {
+            let mut limbs = [0u8; 48];
+            limbs[..32].copy_from_slice(&limbs0);
+            limbs[32..48].copy_from_slice(&limbs1);
+            SVMFp::from_le_bytes_mod_order(&limbs)
+        }
+    }
+
+    prop_compose! {
         fn arb_scalar_nonzero()(x in arb_scalar()) -> Fr {
             if x == Fr::from(0u64) {
                 return Fr::from(1u64);
@@ -439,6 +448,24 @@ mod test {
                 tau_i *= tau;
             }
             TheirStuff { tau_powers_g1, tau_powers_g2, alpha_tau_powers_g1, beta_tau_powers_g1, beta_g2: <Bls12_377 as PairingEngine>::G2Affine::prime_subgroup_generator() * beta }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_basefield_conversion_respects_addition(x in arb_basefield(), y in arb_basefield()) {
+            let left = convert_fp(x) + convert_fp(y);
+            let right = convert_fp(x + y);
+            assert_eq!(left, right);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_basefield_conversion_respects_multiplication(x in arb_basefield(), y in arb_basefield()) {
+            let left = convert_fp(x) * convert_fp(y);
+            let right = convert_fp(x * y);
+            assert_eq!(left, right);
         }
     }
 
@@ -474,5 +501,13 @@ mod test {
             let validated = penumbra_proof_setup::all::Phase1CeremonyCRS::try_from(converted);
             assert!(validated.is_ok());
         }
+    }
+
+    #[test]
+    fn test_g1_conversion_on_generator() {
+        let their_x_1 = <Bls12_377 as PairingEngine>::G1Affine::prime_subgroup_generator();
+        let out_x_1 = penumbra_proof_setup::single::group::G1::generator();
+        dbg!(&their_x_1);
+        assert_eq!(convert_g1(&their_x_1).into_affine(), out_x_1.into_affine());
     }
 }
